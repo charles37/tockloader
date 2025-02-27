@@ -134,13 +134,21 @@ class OpenOCD(BoardInterface):
 
         # Defaults.
         prefix = ""
-        source = "source [find board/{board}];".format(board=self.openocd_board)
+
+        # Handle board configuration path more flexibly
+        if self.openocd_board.endswith(".cfg") or "/" in self.openocd_board:
+            # Path already contains directory or extension
+            source = "source [find {}];".format(self.openocd_board)
+        else:
+            # Default to the board directory
+            source = "source [find board/{board}];".format(board=self.openocd_board)
+
         cmd_prefix = "init; reset init; halt;"
         cmd_suffix = ""
 
         # Add serial number specification if provided
         if hasattr(self, "openocd_serial_number") and self.openocd_serial_number:
-            # For J-Link interfaces, we need to be careful about the order of commands
+            # For J-Link interfaces, we need special handling
             if self._is_jlink_interface():
                 # Add transport selection before serial number for J-Link
                 prefix += "transport select swd; adapter serial {}; ".format(
@@ -202,26 +210,18 @@ class OpenOCD(BoardInterface):
             "adapter serial" command without transport selection, which is
             appropriate for ST-Link, CMSIS-DAP and other non-J-Link adapters.
         """
-
-        # Check if we're explicitly using jlink interface file
-        if hasattr(self, "args") and hasattr(self.args, "openocd_board"):
-            if self.args.openocd_board and "jlink" in self.args.openocd_board.lower():
+        # Check if we're explicitly using a jlink interface file
+        if hasattr(self, "openocd_board") and isinstance(self.openocd_board, str):
+            board_lower = self.openocd_board.lower()
+            if "jlink" in board_lower or "nordic" in board_lower:
                 return True
 
-        # Check if we're passing a direct interface file
-        # Many users specify -f interface/jlink.cfg directly
-        openocd_commands = getattr(self.args, "openocd_commands", {})
-        for cmd in openocd_commands.values():
-            if "interface/jlink" in cmd:
-                return True
+        # Check based on board names that typically use J-Link
+        known_jlink_boards = ["nrf51", "nrf52", "nrf52dk", "nrf52840dk"]
+        if self.board in known_jlink_boards:
+            return True
 
-        # For the board-specific settings defined in KNOWN_BOARDS
-        if self.board in self.KNOWN_BOARDS:
-            board_cfg = self.KNOWN_BOARDS[self.board]
-            if "openocd" in board_cfg and "cfg" in board_cfg["openocd"]:
-                if "jlink" in board_cfg["openocd"]["cfg"].lower():
-                    return True
-
+        # Return False for all other cases, indicating this is not a J-Link interface
         return False
 
     def _run_openocd_commands(self, commands, binary, write=True):
