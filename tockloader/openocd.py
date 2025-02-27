@@ -148,17 +148,10 @@ class OpenOCD(BoardInterface):
 
         # Add serial number specification if provided
         if hasattr(self, "openocd_serial_number") and self.openocd_serial_number:
-            # For J-Link interfaces, we need to use jlink serial command
-            if self._is_jlink_interface():
-                # The key is to make sure interface is specified before setting serial
-                prefix = (
-                    "interface jlink; jlink serial {}; transport select swd; ".format(
-                        self.openocd_serial_number
-                    )
-                )
-            else:
-                # For non-J-Link interfaces, use adapter serial
-                prefix = "adapter serial {}; ".format(self.openocd_serial_number)
+            # Using the updated syntax recommended by OpenOCD
+            prefix = "adapter driver jlink; adapter serial {}; transport select swd; ".format(
+                self.openocd_serial_number
+            )
 
         # Do the customizations
         if "workareazero" in self.openocd_options:
