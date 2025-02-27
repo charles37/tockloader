@@ -146,7 +146,7 @@ class OpenOCD(BoardInterface):
         cmd_prefix = "init; reset init; halt;"
         cmd_suffix = ""
 
-        # Add serial number specification if provided
+        # Do the customizations
         if hasattr(self, "openocd_serial_number") and self.openocd_serial_number:
             # For J-Link interfaces, we need special handling
             if self._is_jlink_interface():
@@ -157,7 +157,6 @@ class OpenOCD(BoardInterface):
             else:
                 prefix += "adapter serial {}; ".format(self.openocd_serial_number)
 
-        # Do the customizations
         if "workareazero" in self.openocd_options:
             prefix = "set WORKAREASIZE 0;" + prefix
         if self.openocd_prefix:
@@ -210,7 +209,7 @@ class OpenOCD(BoardInterface):
             "adapter serial" command without transport selection, which is
             appropriate for ST-Link, CMSIS-DAP and other non-J-Link adapters.
         """
-        # Check if we're explicitly using a jlink interface file
+        # Check based on board name or configuration
         if hasattr(self, "openocd_board") and isinstance(self.openocd_board, str):
             board_lower = self.openocd_board.lower()
             if "jlink" in board_lower or "nordic" in board_lower:
@@ -221,7 +220,6 @@ class OpenOCD(BoardInterface):
         if self.board in known_jlink_boards:
             return True
 
-        # Return False for all other cases, indicating this is not a J-Link interface
         return False
 
     def _run_openocd_commands(self, commands, binary, write=True):
