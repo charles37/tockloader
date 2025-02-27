@@ -146,17 +146,21 @@ class OpenOCD(BoardInterface):
         cmd_prefix = "init; reset init; halt;"
         cmd_suffix = ""
 
-        # Do the customizations
+        # Add serial number specification if provided
         if hasattr(self, "openocd_serial_number") and self.openocd_serial_number:
-            # For J-Link interfaces, we need special handling
+            # For J-Link interfaces, we need to use jlink serial command
             if self._is_jlink_interface():
-                # Add transport selection before serial number for J-Link
-                prefix += "transport select swd; adapter serial {}; ".format(
-                    self.openocd_serial_number
+                # The key is to make sure interface is specified before setting serial
+                prefix = (
+                    "interface jlink; jlink serial {}; transport select swd; ".format(
+                        self.openocd_serial_number
+                    )
                 )
             else:
-                prefix += "adapter serial {}; ".format(self.openocd_serial_number)
+                # For non-J-Link interfaces, use adapter serial
+                prefix = "adapter serial {}; ".format(self.openocd_serial_number)
 
+        # Do the customizations
         if "workareazero" in self.openocd_options:
             prefix = "set WORKAREASIZE 0;" + prefix
         if self.openocd_prefix:
@@ -180,6 +184,9 @@ class OpenOCD(BoardInterface):
             cmd_suffix=cmd_suffix,
         )
 
+        # Debug print to see the final command
+        print("OpenOCD Command: ", command_param)
+
         return (
             "{openocd_cmd} -c {cmd} --debug".format(
                 openocd_cmd=self.openocd_cmd,
@@ -196,20 +203,15 @@ class OpenOCD(BoardInterface):
         the order of commands for serial number specification. This function helps
         properly configure command ordering based on adapter type.
 
-        For J-Link adapters, we must specify transport mode before serial number.
+        For J-Link adapters, we must specify the interface before serial number.
         For other adapter types (ST-Link, CMSIS-DAP, etc.), the adapter serial number
-        can be specified without additional transport configuration.
+        can be specified with the "adapter serial" command.
 
         Returns:
             bool: True if using a J-Link adapter, False for other adapter types
                   (ST-Link, CMSIS-DAP, etc.)
-
-        Note:
-            When this returns False, the implementation will use the simpler
-            "adapter serial" command without transport selection, which is
-            appropriate for ST-Link, CMSIS-DAP and other non-J-Link adapters.
         """
-        # Check based on board name or configuration
+        # Check if we're explicitly using a jlink interface file
         if hasattr(self, "openocd_board") and isinstance(self.openocd_board, str):
             board_lower = self.openocd_board.lower()
             if "jlink" in board_lower or "nordic" in board_lower:
@@ -220,6 +222,7 @@ class OpenOCD(BoardInterface):
         if self.board in known_jlink_boards:
             return True
 
+        # Return False for all other cases, indicating this is not a J-Link interface
         return False
 
     def _run_openocd_commands(self, commands, binary, write=True):
