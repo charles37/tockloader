@@ -134,14 +134,7 @@ class OpenOCD(BoardInterface):
 
         # Defaults.
         prefix = ""
-
-        # Handle board configuration path more flexibly
-        if self.openocd_board.endswith(".cfg") or "/" in self.openocd_board:
-            # Path already contains directory or extension
-            source = "source [find {}];".format(self.openocd_board)
-        else:
-            # Default to the board directory
-            source = "source [find board/{board}];".format(board=self.openocd_board)
+        source = "source [find board/{board}];".format(board=self.openocd_board)
 
         cmd_prefix = "init; reset init; halt;"
         cmd_suffix = ""
@@ -149,7 +142,7 @@ class OpenOCD(BoardInterface):
         # Add serial number specification if provided
         if hasattr(self, "openocd_serial_number") and self.openocd_serial_number:
             # Using the updated syntax recommended by OpenOCD
-            prefix = "adapter driver jlink; adapter serial {}; transport select swd; ".format(
+            prefix = "adapter driver jlink; adapter serial {}; ".format(
                 self.openocd_serial_number
             )
 
